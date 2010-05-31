@@ -1,0 +1,25 @@
+EXTRADEFS = -DUSE_WS_PREFIX
+TOPSRCDIR = @top_srcdir@
+TOPOBJDIR = ../..
+SRCDIR    = @srcdir@
+VPATH     = @srcdir@
+MODULE    = ws2_32.dll
+IMPORTLIB = ws2_32
+IMPORTS   = iphlpapi kernel32 ntdll
+DELAYIMPORTS = user32
+EXTRALIBS = @LIBPOLL@
+
+C_SRCS = \
+	async.c \
+	protocol.c \
+	socket.c
+
+C_SRCS16 = socket16.c
+
+SPEC_SRCS16 = winsock.spec
+
+RC_SRCS = version.rc
+
+@MAKE_DLL_RULES@
+
+@DEPENDENCIES@  # everything below this line is overwritten by make depend

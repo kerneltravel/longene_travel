@@ -1,0 +1,15 @@
+*.o
+*.mod.c
+*.ko
+*.o.d
+*.cmd
+*.i
+Module.symvers
+Module.markers
+modules.order
+tags
+TAGS
+.tmp_versions
+*.orig
+!.gitignore
+!.mailmap
