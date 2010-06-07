@@ -1077,8 +1077,12 @@ void WINAPI InstallHinfSectionW( HWND hwnd, HINSTANCE handle, LPCWSTR cmdline, I
                                  SetupDefaultQueueCallbackW, callback_context,
                                  NULL, NULL );
     SetupTermDefaultQueueCallback( callback_context );
+	/* FIXME: InstallServices failed to return because of SCManager not work. */
+	/* So disable it temporarily to speed up the first time App start-up */
+#if 0
     strcatW( section, servicesW );
     SetupInstallServicesFromInfSectionW( hinf, section, 0 );
+#endif
     SetupCloseInfFile( hinf );
 
     /* FIXME: should check the mode and maybe reboot */
