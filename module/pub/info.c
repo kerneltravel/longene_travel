@@ -30,6 +30,8 @@
 
 #ifdef CONFIG_UNIFIED_KERNEL
 
+extern char *rootdir;
+
 static unsigned int dummyfile_poll(struct file *f, struct poll_table_struct *p)
 {
 	if (current_thread->wake_up) {
@@ -87,4 +89,68 @@ void create_dummy_file(struct w32process *process)
 
 	ktrace("process %p, dummyfd %d\n", process, process->dummyfd);
 }
+
+/* find $HOME from environment varibale and init rootdir */
+void init_rootdir(void)
+{
+	pid_t pid;
+	mm_segment_t fs;
+
+	char filename[40];
+	struct file *filp;
+	char *buf;
+	char home[] = "HOME";
+	char dotwine[] = "/.wine";
+	char *p = NULL;
+	int i = 0;
+
+	ktrace("rootdir init....\n");
+
+	rootdir = (char *) malloc(sizeof(char)*100);
+
+	pid = current->pid;
+	snprintf(filename, 40, "/proc/%d/environ", pid);   /* filename=/proc/pid/environ, environ is a environment varibale file*/
+
+	filp = filp_open(filename, O_RDONLY, 0);
+	if (IS_ERR(filp))
+	{
+		kdebug("filp_open error:%s------rootdir init fail, so fall back to /root/.wine\n", filename);
+		strcpy(rootdir, "/root/.wine");
+		return;
+	}
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	buf = (char *) malloc(sizeof(char)*2048);
+
+	while (filp->f_op->read(filp, &buf[i], 1, &(filp->f_pos)) == 1)
+	{
+		if (buf[i++] != '\0')
+		{
+			continue;     /* read a string */
+		}
+		buf[i] = '\0';
+
+		if ((p = strstr(buf, home)) != NULL)          /* find "HOME" */
+		{
+			strcpy(rootdir, (p + strlen(home) + 1));   /* copy "$HOME" */
+			strcat(rootdir, dotwine);                  /* $HOME/.wine */
+			ktrace("rootdir = %s \n", rootdir);
+			break;
+		}
+
+		i = 0;
+		memset(buf, '\0', 2048);
+	}
+
+	set_fs(fs);
+	free(buf);
+	filp_close(filp, NULL);
+}
+
+void free_rootdir(void)
+{
+	free(rootdir);
+}
+
 #endif /* CONFIG_UNIFIED_KERNEL */
