@@ -106,14 +106,13 @@ void init_rootdir(void)
 
 	ktrace("rootdir init....\n");
 
-	rootdir = (char *) malloc(sizeof(char)*100);
+	rootdir = (char *) malloc(sizeof(char) * 100);
 
 	pid = current->pid;
-	snprintf(filename, 40, "/proc/%d/environ", pid);   /* filename=/proc/pid/environ, environ is a environment varibale file*/
+	snprintf(filename, 40, "/proc/%d/environ", pid);   /* filename=/proc/pid/environ, environ is a environment varibale file */
 
 	filp = filp_open(filename, O_RDONLY, 0);
-	if (IS_ERR(filp))
-	{
+	if (IS_ERR(filp)) {
 		kdebug("filp_open error:%s------rootdir init fail, so fall back to /root/.wine\n", filename);
 		strcpy(rootdir, "/root/.wine");
 		return;
@@ -121,20 +120,17 @@ void init_rootdir(void)
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-	buf = (char *) malloc(sizeof(char)*2048);
+	buf = (char *) malloc(sizeof(char) * 2048);
 
-	while (filp->f_op->read(filp, &buf[i], 1, &(filp->f_pos)) == 1)
-	{
-		if (buf[i++] != '\0')
-		{
+	while (filp->f_op->read(filp, &buf[i], 1, &(filp->f_pos)) == 1) {
+		if (buf[i++] != '\0') {
 			continue;     /* read a string */
 		}
 		buf[i] = '\0';
 
-		if ((p = strstr(buf, home)) != NULL)          /* find "HOME" */
-		{
-			strcpy(rootdir, (p + strlen(home) + 1));   /* copy "$HOME" */
-			strcat(rootdir, dotwine);                  /* $HOME/.wine */
+		if ((p = strstr(buf, home)) != NULL) {          /* find "HOME" */
+			strcpy(rootdir, (p + strlen(home) + 1));    /* copy "$HOME" */
+			strcat(rootdir, dotwine);                   /* $HOME/.wine */
 			ktrace("rootdir = %s \n", rootdir);
 			break;
 		}
