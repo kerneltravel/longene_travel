@@ -33,7 +33,7 @@
 void open_dummy_file(void);
 void close_dummy_file(void);
 
-char *rootdir = "/root/.wine/";
+char *rootdir;
 
 extern timeout_t start_time;
 extern SSDT_ENTRY KeServiceDescriptorTable[];
@@ -54,6 +54,9 @@ struct list_head object_class_list;
 
 extern int proc_uk_init(void);
 extern void proc_uk_exit(void);
+
+extern void init_rootdir(void);
+extern void free_rootdir(void);  /*rootdir*/
 
 extern void kernel_init_registry(void);
 extern void init_process_manager(void);
@@ -178,6 +181,7 @@ static int w32_init(void)
 	}
 	
 	proc_uk_init();
+	init_rootdir();
 
 	/* initialise the internal bits */
 	INIT_LIST_HEAD(&object_class_list);
@@ -225,6 +229,7 @@ static void w32_exit(void)
 #endif
 	exit_pe_binfmt();
 	proc_uk_exit();
+	free_rootdir();
 	ret=wake_up_process(save_kernel_task);
 	kthread_stop(save_kernel_task);
 
