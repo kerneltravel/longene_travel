@@ -1197,11 +1197,15 @@ done:
 /* load one of the initial registry files */
 void load_init_registry_from_file(const char *filename, struct reg_key *key)
 {
+#if 0
 	struct LIBC_FILE	*fp;
 	struct file* filp;
+#endif
 
 	ktrace("file %s\n", filename);
 
+#if 0
+	/* FIXME Don't create reg file when insmod module, because there is no .wine now */
 	filp = filp_open(filename,O_RDONLY | O_CREAT ,DEFAULT_FILE_MODE);
 	if (IS_ERR(filp)) {
 		kdebug("filp_open error:%s\n",filename);
@@ -1212,6 +1216,7 @@ void load_init_registry_from_file(const char *filename, struct reg_key *key)
 		load_keys(key, filename, fp, 0);
 		fclose(fp);
 	}
+#endif
 
 	if ((save_branch_info[save_branch_count].path = strdup(filename)))
 		save_branch_info[save_branch_count++].key = (struct reg_key *)grab_object(key);
@@ -1259,11 +1264,14 @@ void kernel_init_registry(void)
 
 	const char *config = rootdir;
 	char *p, *filename;
+#if 0
 	int ret;
 
+	/* FIXME Don't create .wine when insmod module, because the user who insmod module is root. */
 	ret = mkdir(config, 0777);
 	if(ret && ret != -EEXIST)
 		kdebug("sys_mkdir error\n");
+#endif
 
 	init_key_implement();
 
