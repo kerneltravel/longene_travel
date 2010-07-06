@@ -212,7 +212,7 @@ NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source,
 NTSTATUS WINAPI NtClose( HANDLE Handle )
 {
     NTSTATUS ret;
-    
+
     LOG(LOG_FILE, 0, 0, "handle %p\n", Handle);
     server_remove_fd_from_cache( Handle );
 
@@ -250,42 +250,14 @@ NTSTATUS WINAPI NtOpenDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK Desir
                                       POBJECT_ATTRIBUTES ObjectAttributes)
 {
     NTSTATUS ret;
-#ifndef UNIFIE_KERNEL
-    TRACE("(%p,0x%08x)\n", DirectoryHandle, DesiredAccess);
-    dump_ObjectAttributes(ObjectAttributes);
 
-    if (!DirectoryHandle) return STATUS_ACCESS_VIOLATION;
-    if (!ObjectAttributes) return STATUS_INVALID_PARAMETER;
-    /* Have to test it here because server won't know difference between
-     * ObjectName == NULL and ObjectName == "" */
-    if (!ObjectAttributes->ObjectName)
-    {
-        if (ObjectAttributes->RootDirectory)
-            return STATUS_OBJECT_NAME_INVALID;
-        else
-            return STATUS_OBJECT_PATH_SYNTAX_BAD;
-    }
-
-    SERVER_START_REQ(open_directory)
-    {
-        req->access = DesiredAccess;
-        req->attributes = ObjectAttributes->Attributes;
-        req->rootdir = ObjectAttributes->RootDirectory;
-        if (ObjectAttributes->ObjectName)
-            wine_server_add_data(req, ObjectAttributes->ObjectName->Buffer,
-                                 ObjectAttributes->ObjectName->Length);
-        ret = wine_server_call( req );
-        *DirectoryHandle = reply->handle;
-    }
-    SERVER_END_REQ;
-#else
     __asm__ __volatile__ (
             "movl $0x55,%%eax\n\t"
             "lea 8(%%ebp),%%edx\n\t"
             "int $0x2E\n\t"
             :"=a" (ret)
             );
-#endif
+
     return ret;
 }
 
@@ -308,23 +280,14 @@ NTSTATUS WINAPI NtCreateDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK Des
                                         POBJECT_ATTRIBUTES ObjectAttributes)
 {
     NTSTATUS ret;
-    TRACE("(%p,0x%08x)\n", DirectoryHandle, DesiredAccess);
-    dump_ObjectAttributes(ObjectAttributes);
 
-    if (!DirectoryHandle) return STATUS_ACCESS_VIOLATION;
+    __asm__ __volatile__ (
+            "movl $0x16,%%eax\n\t"
+            "lea 8(%%ebp),%%edx\n\t"
+            "int $0x2E\n\t"
+            :"=a" (ret)
+            );
 
-    SERVER_START_REQ(create_directory)
-    {
-        req->access = DesiredAccess;
-        req->attributes = ObjectAttributes ? ObjectAttributes->Attributes : 0;
-        req->rootdir = ObjectAttributes ? ObjectAttributes->RootDirectory : 0;
-        if (ObjectAttributes && ObjectAttributes->ObjectName)
-            wine_server_add_data(req, ObjectAttributes->ObjectName->Buffer,
-                                 ObjectAttributes->ObjectName->Length);
-        ret = wine_server_call( req );
-        *DirectoryHandle = reply->handle;
-    }
-    SERVER_END_REQ;
     return ret;
 }
 
