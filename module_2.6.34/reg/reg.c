@@ -1197,27 +1197,27 @@ done:
 /* load one of the initial registry files */
 void load_init_registry_from_file(const char *filename, struct reg_key *key)
 {
-#if 0
 	struct LIBC_FILE	*fp;
 	struct file* filp;
-#endif
 
 	ktrace("file %s\n", filename);
 
-#if 0
 	/* FIXME Don't create reg file when insmod module, because there is no .wine now */
-	filp = filp_open(filename,O_RDONLY | O_CREAT ,DEFAULT_FILE_MODE);
+	filp = filp_open(filename, O_RDONLY, DEFAULT_FILE_MODE);
 	if (IS_ERR(filp)) {
 		kdebug("filp_open error:%s\n",filename);
-		return;
+		if (PTR_ERR(filp) == -ENOENT)
+			goto dotwine_not_exist;
+		else
+			return;
 	}
 
 	if ((fp = libc_file_open(filp, "r"))) {
 		load_keys(key, filename, fp, 0);
 		fclose(fp);
 	}
-#endif
 
+dotwine_not_exist:
 	if ((save_branch_info[save_branch_count].path = strdup(filename)))
 		save_branch_info[save_branch_count++].key = (struct reg_key *)grab_object(key);
 }
