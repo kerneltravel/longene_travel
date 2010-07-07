@@ -112,6 +112,9 @@ extern void remove_timeout_user(struct timeout_user *user);
 extern const char *get_timeout_str(timeout_t timeout);
 extern int get_next_timeout(void);
 
+extern struct timer_list *add_linux_timer(timeout_t when, timeout_callback func, void *private);
+extern void remove_linux_timer(struct timer_list *timer);
+
 /* file functions */
 struct uk_file;
 

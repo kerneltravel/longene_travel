@@ -60,7 +60,7 @@ struct message_result
 	struct message        *callback_msg;  /* message to queue for callback */
 	void                  *data;          /* message reply data */
 	unsigned int           data_size;     /* size of message reply data */
-	struct timeout_user   *timeout;       /* result timeout */
+	struct timer_list 	  *timeout; 	  /* result timeout */
 };
 
 struct message
@@ -127,7 +127,7 @@ struct msg_queue
 	struct list_head       pending_timers;  /* list of pending timers */
 	struct list_head       expired_timers;  /* list of expired timers */
 	unsigned long          next_timer_id;   /* id for the next timer with a 0 window */
-	struct timeout_user   *timeout;         /* timeout for next timer to expire */
+	struct timer_list 	  *timeout; 		/* timeout for next timer to expire */ 
 	struct thread_input   *input;           /* thread input descriptor */
 	struct hook_table     *hooks;           /* hook table */
 	timeout_t              last_get_msg;    /* time of last get message call */
@@ -545,7 +545,7 @@ static int merge_message(struct thread_input *input, const struct message *msg)
 static void free_result(struct message_result *result)
 {
 	if (result->timeout)
-		remove_timeout_user(result->timeout);
+		remove_linux_timer(result->timeout);
 	free(result->data);
 	if (result->callback_msg)
 		free_message(result->callback_msg);
@@ -569,7 +569,7 @@ static void store_message_result(struct message_result *res, unsigned long resul
 	res->error   = error;
 	res->replied = 1;
 	if (res->timeout) {
-		remove_timeout_user(res->timeout);
+		remove_linux_timer(res->timeout);
 		res->timeout = NULL;
 	}
 	if (res->sender) {
@@ -697,8 +697,8 @@ static struct message_result *alloc_message_result(struct msg_queue *send_queue,
 			list_add_head(&send_queue->send_result, &result->sender_entry);
 		}
 
-		if (timeout != TIMEOUT_INFINITE)
-			result->timeout = add_timeout_user(timeout, result_timeout, result);
+		if (timeout != TIMEOUT_INFINITE) /* FIXME: result->callback_msg->time or timeout passed as parameter? */
+			result->timeout = add_linux_timer(result->callback_msg->time * 10000, result_timeout, result);
 	}
 	return result;
 }
@@ -941,7 +941,7 @@ static void msg_queue_destroy(struct object *obj)
 		free(timer);
 	}
 	if (queue->timeout)
-		remove_timeout_user(queue->timeout);
+		remove_linux_timer(queue->timeout);
 	if (queue->input)
 		release_object(queue->input);
 	if (queue->hooks)
@@ -1071,12 +1071,12 @@ static void set_next_timer(struct msg_queue *queue)
 	struct list_head *ptr;
 
 	if (queue->timeout) {
-		remove_timeout_user(queue->timeout);
+		remove_linux_timer(queue->timeout);
 		queue->timeout = NULL;
 	}
 	if ((ptr = list_head(&queue->pending_timers))) {
 		struct timer *timer = LIST_ENTRY(ptr, struct timer, entry);
-		queue->timeout = add_timeout_user(timer->when, timer_callback, queue);
+		queue->timeout = add_linux_timer(timer->rate * 10000, timer_callback, queue);
 	}
 	/* set/clear QS_TIMER bit */
 	if (list_empty(&queue->expired_timers))
@@ -1112,6 +1112,8 @@ static void timer_callback(void *private)
 	struct msg_queue *queue = private;
 	struct list_head *ptr;
 
+	kdebug("\n");
+	remove_linux_timer(queue->timeout);
 	queue->timeout = NULL;
 	/* move on to the next timer */
 	ptr = list_head(&queue->pending_timers);
@@ -1136,6 +1138,7 @@ static void link_timer(struct msg_queue *queue, struct timer *timer)
 /* remove a timer from the queue timer list and free it */
 static void free_timer(struct msg_queue *queue, struct timer *timer)
 {
+	kdebug("\n");
 	list_remove(&timer->entry);
 	free(timer);
 	set_next_timer(queue);
@@ -1175,6 +1178,7 @@ static struct timer *find_expired_timer(struct msg_queue *queue, user_handle_t w
 static struct timer *set_timer(struct msg_queue *queue, unsigned int rate)
 {
 	struct timer *timer = mem_alloc(sizeof(*timer));
+	kdebug("\n");
 	if (timer) {
 		timer->rate = max(rate, (unsigned int)1);
 		timer->when = current_time + (timeout_t)timer->rate * 10000;
@@ -2026,7 +2030,7 @@ DECL_HANDLER(set_win_timer)
 	user_handle_t win = 0;
 	unsigned long id = req->id;
 
-	ktrace("\n");
+	kdebug("\n");
 	if (req->win) {
 		if (!(win = get_user_full_handle(req->win)) || !(thread = get_window_thread(win))) {
 			set_error(STATUS_INVALID_HANDLE);
@@ -2077,7 +2081,7 @@ DECL_HANDLER(kill_win_timer)
 	struct w32thread *thread;
 	user_handle_t win = 0;
 
-	ktrace("\n");
+	kdebug("\n");
 	if (req->win) {
 		if (!(win = get_user_full_handle(req->win)) || !(thread = get_window_thread(win))) {
 			set_error(STATUS_INVALID_HANDLE);

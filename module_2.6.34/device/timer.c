@@ -39,10 +39,9 @@ struct timer
 {
 	struct object        obj;       /* object header */
 	int                  manual;    /* manual reset */
-	int                  signaled;  /* current signaled state */
 	unsigned int         period;    /* timer period in ms */
 	timeout_t            when;      /* next expiration */
-	struct timeout_user *timeout;   /* timeout user */
+	struct timer_list 	*timeout; 	/* linux timer */
 	struct w32thread    *thread;    /* thread that set the APC function */
 	void                *callback;  /* callback APC function */
 	void                *arg;       /* callback argument */
@@ -124,13 +123,13 @@ static struct timer *create_timer(struct directory *root, const struct unicode_s
 {
 	struct timer *timer;
 
+	kdebug("\n");
 	if ((timer = create_named_object_dir(root, name, attr, &timer_ops))) {
 		if (get_error() != STATUS_OBJECT_NAME_EXISTS) {
 			/* initialize it if it didn't already exist */
 			INIT_DISP_HEADER(&timer->obj.header, TIMER, 
 					sizeof(struct timer) / sizeof(ULONG), 0);
 			timer->manual   = manual;
-			timer->signaled = 0;
 			timer->when     = 0;
 			timer->period   = 0;
 			timer->timeout  = NULL;
@@ -145,6 +144,7 @@ static void timer_callback(void *private)
 {
 	struct timer *timer = (struct timer *)private;
 
+	kdebug("\n");
 	/* queue an APC */
 	if (timer->thread) {
 		apc_call_t data;
@@ -165,23 +165,29 @@ static void timer_callback(void *private)
 	}
 
 	if (timer->period)  /* schedule the next expiration */ {
-		timer->when += (timeout_t)timer->period * 10000;
-		timer->timeout = add_timeout_user(timer->when, timer_callback, timer);
+		timer->when = (timeout_t)timer->period * 10000;
+		if (timer->timeout)
+			remove_linux_timer(timer->timeout); 	/* FIXME: reuse this linux timer */
+		timer->timeout = add_linux_timer(timer->when, timer_callback, timer);
+	} else {
+		if (timer->timeout)
+			remove_linux_timer(timer->timeout);
+		timer->timeout = NULL;
 	}
-	else timer->timeout = NULL;
 
 	/* wake up waiters */
-	timer->signaled = 1;
+	timer->obj.header.signal_state = 1;
 	uk_wake_up(&timer->obj, 0);
 }
 
 /* cancel a running timer */
 static int cancel_timer(struct timer *timer)
 {
-	int signaled = timer->signaled;
+	int signaled = timer->obj.header.signal_state;
 
+	kdebug("\n");
 	if (timer->timeout) {
-		remove_timeout_user(timer->timeout);
+		remove_linux_timer(timer->timeout);
 		timer->timeout = NULL;
 	}
 	if (timer->thread) {
@@ -197,17 +203,20 @@ static int set_timer(struct timer *timer, timeout_t expire, unsigned int period,
 				void *callback, void *arg)
 {
 	int signaled = cancel_timer(timer);
+
+	kdebug("\n");
 	if (timer->manual) {
 		period = 0;  /* period doesn't make any sense for a manual timer */
-		timer->signaled = 0;
+		timer->obj.header.signal_state = 0;
 	}
-	timer->when     = (expire <= 0) ? current_time - expire : max((unsigned int)expire, current_time);
+	timer->when 	= (expire <= 0) ? 0 - expire : max(max(expire, current_time) - current_time, (timeout_t)1);
+	kdebug("timer->when = %lld\n", timer->when);
 	timer->period   = period;
 	timer->callback = callback;
 	timer->arg      = arg;
 	if (callback)
 		timer->thread = (struct w32thread *)grab_object(current_thread);
-	timer->timeout = add_timeout_user(timer->when, timer_callback, timer);
+	timer->timeout = add_linux_timer(timer->when, timer_callback, timer);
 	return signaled;
 }
 
@@ -225,23 +234,24 @@ static struct object_type *timer_get_type(struct object *obj)
 static int timer_signaled(struct object *obj, struct w32thread *thread)
 {
 	struct timer *timer = (struct timer *)obj;
-	return timer->signaled;
+	return timer->obj.header.signal_state;
 }
 
 static int timer_satisfied(struct object *obj, struct w32thread *thread)
 {
 	struct timer *timer = (struct timer *)obj;
+	kdebug("\n");
 	if (!timer->manual)
-		timer->signaled = 0;
+		timer->obj.header.signal_state = 0;
 	return 0;
 }
 
 static void timer_destroy(struct object *obj)
 {
 	struct timer *timer = (struct timer *)obj;
-
+	kdebug("\n");
 	if (timer->timeout)
-		remove_timeout_user(timer->timeout);
+		remove_linux_timer(timer->timeout);
 	if (timer->thread)
 		release_object(timer->thread);
 }
@@ -253,7 +263,7 @@ DECL_HANDLER(create_timer)
 	struct unicode_str name;
 	struct directory *root = NULL;
 
-	ktrace("\n");
+	kdebug("\n");
 	reply->handle = 0;
 	get_req_unicode_str(&name);
 
@@ -273,7 +283,7 @@ DECL_HANDLER(open_timer)
 	struct directory *root = NULL;
 	struct timer *timer;
 
-	ktrace("\n");
+	kdebug("\n");
 	get_req_unicode_str(&name);
 
 	if ((timer = open_object_dir(req->rootdir, &name, req->attributes, &timer_ops))) {
@@ -290,7 +300,7 @@ DECL_HANDLER(set_timer)
 {
 	struct timer *timer;
 
-	ktrace("\n");
+	kdebug("\n");
 	if ((timer = (struct timer *)get_wine_handle_obj(get_current_w32process(), req->handle,
 					TIMER_MODIFY_STATE, &timer_ops))) {
 		reply->signaled = set_timer(timer, req->expire, req->period, req->callback, req->arg);
@@ -303,7 +313,7 @@ DECL_HANDLER(cancel_timer)
 {
 	struct timer *timer;
 
-	ktrace("\n");
+	kdebug("\n");
 	if ((timer = (struct timer *)get_wine_handle_obj(get_current_w32process(), req->handle,
 					TIMER_MODIFY_STATE, &timer_ops))) {
 		reply->signaled = cancel_timer(timer);
@@ -316,11 +326,11 @@ DECL_HANDLER(get_timer_info)
 {
 	struct timer *timer;
 
-	ktrace("\n");
+	kdebug("\n");
 	if ((timer = (struct timer *)get_wine_handle_obj(get_current_w32process(), req->handle,
 					TIMER_QUERY_STATE, &timer_ops))) {
 		reply->when      = timer->when;
-		reply->signaled  = timer->signaled;
+		reply->signaled = timer->obj.header.signal_state;
 		release_object(timer);
 	}
 }

@@ -301,11 +301,39 @@ struct timeout_user *add_timeout_user(timeout_t when, timeout_callback func, voi
 	return user;
 }
 
+/* add a linux timer */
+struct timer_list *add_linux_timer(timeout_t when, timeout_callback func, void *private)
+{
+	struct timer_list *timer;
+	struct timespec ts = { 0, 0 };
+
+	kdebug("\n");
+	timer = (struct timer_list *)malloc(sizeof(struct timer_list));
+	init_timer(timer);
+	timespec_add_ns(&ts, when * 100);
+	kdebug("jiffies = %ld\n", jiffies);
+	timer->expires = jiffies + timespec_to_jiffies(&ts);
+	kdebug("timer->expires = %ld\n", timer->expires);
+	timer->data = (unsigned long)private;
+	timer->function = (void *)func;
+	add_timer(timer);
+
+	return timer;
+}
+
 /* remove a timeout user */
 void remove_timeout_user(struct timeout_user *user)
 {
 	list_del(&user->entry);
 	free(user);
+}
+
+/* remove a linux timer */
+void remove_linux_timer(struct timer_list *timer)
+{
+	kdebug("\n");
+	del_timer(timer);
+	free(timer);
 }
 
 /* return a text description of a timeout for debugging purposes */
@@ -319,7 +347,7 @@ int get_next_timeout(void)
 {
 	if (!list_empty(&timeout_list)) {
 		struct list_head expired_list, *ptr;
-		unsigned int now;
+		timeout_t now;
 
 		local_irq_disable();
 		now = current_time;
@@ -361,6 +389,7 @@ int get_next_timeout(void)
 	}
 	return -1;  /* no pending timeouts */
 }
+
 
 /****************************************************************/
 /* device functions */

@@ -802,7 +802,7 @@ int get_tick_count(void)
 	return div_s64_rem((get_current_time() - start_time), 10000, &rem);
 }
 
-unsigned int get_current_time(void)
+timeout_t get_current_time(void)
 {
 	struct timespec ts;
 

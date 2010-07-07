@@ -52,7 +52,7 @@
 #ifdef CONFIG_UNIFIED_KERNEL
 #define	errno	get_error()
 
-unsigned int get_current_time(void);
+timeout_t get_current_time(void);
 #define current_time get_current_time() 
 
 struct LIBC_FILE

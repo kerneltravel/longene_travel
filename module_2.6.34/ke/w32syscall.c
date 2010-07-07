@@ -2823,7 +2823,6 @@ EXPORT_SYMBOL(KeServiceDescriptorTable);
 void enter_win_syscall(void)
 {
 	ktrace("enter <==================\n");
-	get_next_timeout();
 }
 
 void leave_win_syscall(void)
