@@ -308,7 +308,12 @@ struct timer_list *add_linux_timer(timeout_t when, timeout_callback func, void *
 	struct timespec ts = { 0, 0 };
 
 	kdebug("\n");
-	timer = (struct timer_list *)malloc(sizeof(struct timer_list));
+	timer = (struct timer_list *)kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
+	if (!timer) {
+		kdebug("kmalloc(timer_list) atomic error.\n");
+		set_error(STATUS_NO_MEMORY);
+		return NULL;
+	}
 	init_timer(timer);
 	timespec_add_ns(&ts, when * 100);
 	kdebug("jiffies = %ld\n", jiffies);
@@ -333,7 +338,7 @@ void remove_linux_timer(struct timer_list *timer)
 {
 	kdebug("\n");
 	del_timer(timer);
-	free(timer);
+	kfree(timer);
 }
 
 /* return a text description of a timeout for debugging purposes */
