@@ -729,6 +729,8 @@ static struct sock *accept_socket(obj_handle_t handle)
 			return NULL;
 		}
 
+		INIT_DISP_HEADER(&acceptsock->obj.header, SOCK, sizeof(struct sock) / sizeof(ULONG), 0);
+
 		/* newly created socket gets the same properties of the listening socket */
 		fcntl(acceptfd, F_SETFL, O_NONBLOCK); /* make socket nonblocking */
 		acceptsock->state  = FD_WINE_CONNECTED|FD_READ|FD_WRITE;
