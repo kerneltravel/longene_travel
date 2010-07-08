@@ -1239,9 +1239,11 @@ struct file *get_unix_file(struct fd *fd)
 }
 
 /* retrieve the unix fd for an handle */
-int get_unix_fd(obj_handle_t handle)
+int get_unix_fd(struct fd *fd)
 {
-	return get_handle_fd(get_current_eprocess(), handle);
+	if (fd->unix_fd == -1)
+		set_error(fd->no_fd_status);
+	return fd->unix_fd;
 }
 
 int extract_unix_fd(struct fd *fdp)

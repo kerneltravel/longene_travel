@@ -131,7 +131,7 @@ void remove_timeout_user(struct timeout_user *user);
 struct fd *create_anonymous_fd(const struct fd_ops *fd_user_ops,
 		int unix_fd, struct object *user, unsigned int options);
 void *get_fd_user(struct fd *fd);
-int get_unix_fd(HANDLE handle);
+int get_unix_fd(struct fd *fd);
 
 /* winstation */
 obj_handle_t find_inherited_handle(struct w32process *process, const struct object_ops *ops);

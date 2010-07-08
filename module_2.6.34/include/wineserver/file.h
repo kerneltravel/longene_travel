@@ -67,7 +67,6 @@ extern struct fd *open_fd(const char *name, int flags, mode_t *mode, unsigned in
 extern void *get_fd_user(struct fd *fd);
 extern void set_fd_user(struct fd *fd, const struct fd_ops *ops, struct object *user);
 extern unsigned int get_fd_options(struct fd *fd);
-extern int get_unix_fd(obj_handle_t handle);
 extern int is_same_file_fd(struct fd *fd1, struct fd *fd2);
 extern int is_fd_removable(struct fd *fd);
 extern int fd_close_handle(struct object *obj, struct w32process *process, obj_handle_t handle);
