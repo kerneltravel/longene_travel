@@ -847,8 +847,7 @@ BOOL process_init(void)
 
     if (boot_event)
     {
-		/* FIXME there is a bug in update_wineprefix(), wineboot can't retrun form it, so we don't need wait too long */
-        if (WaitForSingleObject( boot_event, 15000 /* 30000 */ )) WARN( "boot event wait timed out\n" );
+        if (WaitForSingleObject( boot_event, 30000 )) WARN( "boot event wait timed out\n" );
         CloseHandle( boot_event );
         /* if we didn't find environment section, try again now that wineboot has run */
         if (!got_environment)
