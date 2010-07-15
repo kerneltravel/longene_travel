@@ -2501,11 +2501,7 @@ LOG(LOG_FILE, 0, 0, "%s\n", debugstr_w(wm->ldr.FullDllName.Buffer) );
 
     if ((status = server_init_process_done()) != STATUS_SUCCESS) goto error;
 
-    load_path = NtCurrentTeb()->Peb->ProcessParameters->DllPath.Buffer;
-	//top level, fixup_imports() for the EXE.
-    if ((status = fixup_imports( wm, load_path )) != STATUS_SUCCESS) 
-		goto error;
-    /* get process start address from kernel32.dll*/
+	/* get process start address from kernel32.dll*/
     if (!(BaseProcessStartEntry = (unsigned long) find_builtin_symbol("kernel32.dll", "BaseProcessStart")))
             goto error;
 
@@ -2521,7 +2517,13 @@ LOG(LOG_FILE, 0, 0, "%s\n", debugstr_w(wm->ldr.FullDllName.Buffer) );
 
     process_init();
     actctx_init();
-    if ((status = alloc_process_tls()) != STATUS_SUCCESS) goto error;
+
+    load_path = NtCurrentTeb()->Peb->ProcessParameters->DllPath.Buffer;
+	//top level, fixup_imports() for the EXE.
+    if ((status = fixup_imports( wm, load_path )) != STATUS_SUCCESS) 
+		goto error;
+    
+	if ((status = alloc_process_tls()) != STATUS_SUCCESS) goto error;
     if ((status = alloc_thread_tls()) != STATUS_SUCCESS) goto error;
 
     status = attach_process_dlls(wm);

@@ -254,7 +254,6 @@ static void set_registry_variables( HANDLE hkey, ULONG type )
     char buffer[1024*sizeof(WCHAR) + sizeof(KEY_VALUE_FULL_INFORMATION)];
     KEY_VALUE_FULL_INFORMATION *info = (KEY_VALUE_FULL_INFORMATION *)buffer;
 
-return;
     for (index = 0; ; index++)
     {
         status = NtEnumerateValueKey( hkey, index, KeyValueFullInformation,
